@@ -111,3 +111,10 @@
   - the file-change alert: a write after Allow, and a declined write shown as Failed
   - a failed request ("Could not connect to the server.") with Retry, retried after the server came back
 - On the same simulator against OpenRouter (`openrouter/free`): list, read and write with a real model, the file-change alert, and streamed reasoning.
+
+## Releases
+
+- **TestFlight:** `.github/workflows/testflight.yml` (manual run) uses stupid-app's `testflight` action: it builds on Ubuntu, asks stupid vault for a release session with the run's GitHub OIDC token, waits for a passkey approval in the vault app, then fetches the certificate and App Store profiles, bumps and commits the build number, archives (the vault signs each bundle) and uploads to internal TestFlight. No Apple keys are stored in GitHub.
+- **Prerequisites:** an `apple-release` credential linked in the vault; a release policy for this repository, `.github/workflows/testflight.yml`, the branch it runs on, and both `net.stupidtech.StupidAgent` and `net.stupidtech.StupidAgent.keyboard`; an App Store Connect app record for the app; and distribution profiles for both bundle ids, made on a Mac with `stupid-app signing setup --kind distribution` after the keyboard's ID has the App Group (the action only fetches profiles).
+- **Risk:** `SandboxBridge` looks up private `container_query_*` and sandbox-extension functions by name. App Store Connect's upload checks may flag those names even for internal TestFlight.
+

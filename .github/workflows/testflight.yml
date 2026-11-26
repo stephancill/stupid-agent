@@ -1,0 +1,14 @@
+# Builds on Ubuntu and uploads to internal TestFlight through stupid vault, which holds the App Store Connect key and
+# the distribution key and asks for a passkey approval each run. The vault's release policy names this repository,
+# this workflow file, the branch it runs on and both bundle ids (see docs/IMPLEMENTATION.md, Releases).
+name: TestFlight
+on: workflow_dispatch
+permissions:
+  contents: write
+  id-token: write
+jobs:
+  testflight:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: stephancill/stupid-app-cli/.github/actions/testflight@e793a86b0d1319ce1c3a8944fe9cca846c9737e0
