@@ -79,6 +79,8 @@ public struct ModelSettings: Codable, Hashable, Sendable {
     public var recentModelIds: [String]
     /// Where the web_search tool searches.
     public var webSearchProvider: WebSearchProvider
+    /// The model the keyboard assistant uses on the same server; empty uses the preset's fast model, else `modelId`.
+    public var assistantModelId: String
 
     /// How many models the model menu keeps.
     public static let recentLimit = 6
@@ -93,7 +95,8 @@ public struct ModelSettings: Codable, Hashable, Sendable {
         confirmFileChanges: Bool = true,
         allowOtherApps: Bool = false,
         recentModelIds: [String] = [],
-        webSearchProvider: WebSearchProvider = .exa
+        webSearchProvider: WebSearchProvider = .exa,
+        assistantModelId: String = ""
     ) {
         self.preset = preset
         self.baseURL = baseURL ?? preset.baseURL
@@ -105,10 +108,11 @@ public struct ModelSettings: Codable, Hashable, Sendable {
         self.allowOtherApps = allowOtherApps
         self.recentModelIds = recentModelIds
         self.webSearchProvider = webSearchProvider
+        self.assistantModelId = assistantModelId
     }
 
     private enum CodingKeys: String, CodingKey {
-        case preset, baseURL, modelId, reasoning, thinkingLevel, acceptsImages, confirmFileChanges, allowOtherApps, recentModelIds, webSearchProvider
+        case preset, baseURL, modelId, reasoning, thinkingLevel, acceptsImages, confirmFileChanges, allowOtherApps, recentModelIds, webSearchProvider, assistantModelId
     }
 
     // Settings saved before a field existed decode with its default, so an update keeps them.
@@ -125,7 +129,8 @@ public struct ModelSettings: Codable, Hashable, Sendable {
             confirmFileChanges: try container.decodeIfPresent(Bool.self, forKey: .confirmFileChanges) ?? true,
             allowOtherApps: try container.decodeIfPresent(Bool.self, forKey: .allowOtherApps) ?? false,
             recentModelIds: try container.decodeIfPresent([String].self, forKey: .recentModelIds) ?? [],
-            webSearchProvider: try container.decodeIfPresent(WebSearchProvider.self, forKey: .webSearchProvider) ?? .exa
+            webSearchProvider: try container.decodeIfPresent(WebSearchProvider.self, forKey: .webSearchProvider) ?? .exa,
+            assistantModelId: try container.decodeIfPresent(String.self, forKey: .assistantModelId) ?? ""
         )
     }
 
@@ -160,6 +165,25 @@ public struct ModelSettings: Codable, Hashable, Sendable {
             && (!preset.needsAPIKey || !(apiKey ?? "").isEmpty)
     }
 
+    /// The keyboard assistant's model id: the one set for it, else the preset's fast model, else the chat model.
+    public var resolvedAssistantModelId: String {
+        let set = assistantModelId.trimmingCharacters(in: .whitespaces)
+        if !set.isEmpty { return set }
+        if preset == .openRouter { return KeyboardAssistant.defaultOpenRouterModel }
+        return modelId.trimmingCharacters(in: .whitespaces)
+    }
+
+    /// The keyboard assistant's model: the same server, without thinking or images.
+    public var assistantModel: Model {
+        Model(id: resolvedAssistantModelId, provider: preset.providerId, baseURL: baseURL.trimmingCharacters(in: .whitespaces), reasoning: false, input: [.text])
+    }
+
+    /// Headers every request to the server carries.
+    public var requestHeaders: [String: String]? {
+        guard preset == .openRouter else { return nil }
+        return ["HTTP-Referer": "https://stupidtech.net", "X-Title": "stupid agent"]
+    }
+
     public var model: Model {
         Model(
             id: modelId.trimmingCharacters(in: .whitespaces),
@@ -176,17 +200,51 @@ public func shortModelName(_ id: String) -> String {
     id.split(separator: "/").last.map(String.init) ?? id
 }
 
+/// The App Group the app shares with its keyboard. Its `Library/Caches` is reserved for `SandboxBridge`.
+public let appGroupIdentifier = "group.net.stupidtech.StupidAgent"
+
 /// Settings persisted in user defaults, the key in the Keychain.
 public struct SettingsStore {
     private static let settingsKey = "modelSettings"
     private static let apiKeyAccount = "apiKey"
+    public static let keychainService = "net.stupidtech.StupidAgent"
 
     private let defaults: UserDefaults
     private let keychain: Keychain
 
-    public init(defaults: UserDefaults = .standard, keychain: Keychain = Keychain(service: "net.stupidtech.StupidAgent")) {
+    public init(defaults: UserDefaults, keychain: Keychain) {
         self.defaults = defaults
         self.keychain = keychain
+    }
+
+    /// The store the app and the keyboard share: the App Group's user defaults and Keychain access group.
+    public static func shared() throws -> SettingsStore {
+        guard let defaults = UserDefaults(suiteName: appGroupIdentifier) else {
+            throw AssistantError("The App Group \(appGroupIdentifier) isn't available; check the entitlements.")
+        }
+        return SettingsStore(defaults: defaults, keychain: Keychain(service: keychainService, accessGroup: appGroupIdentifier))
+    }
+
+    /// Moves settings and the key saved before they were shared (standard defaults, the app's own Keychain group) into
+    /// this store. Does nothing once this store has settings.
+    public func migrate(from legacyDefaults: UserDefaults = .standard, legacyKeychain: Keychain = Keychain(service: keychainService)) throws {
+        guard defaults.data(forKey: Self.settingsKey) == nil, let data = legacyDefaults.data(forKey: Self.settingsKey) else { return }
+        #if targetEnvironment(simulator)
+        if let key = legacyDefaults.string(forKey: Self.simulatorAPIKeyKey) {
+            defaults.set(key, forKey: Self.simulatorAPIKeyKey)
+        }
+        #else
+        if keychain.read(account: Self.apiKeyAccount) == nil, let key = legacyKeychain.read(account: Self.apiKeyAccount) {
+            // Written before the old copy goes, so a failed write loses nothing.
+            try keychain.write(key, account: Self.apiKeyAccount)
+            if let group = keychain.accessGroup {
+                try legacyKeychain.delete(account: Self.apiKeyAccount, exceptGroup: group)
+            }
+        }
+        #endif
+        defaults.set(data, forKey: Self.settingsKey)
+        legacyDefaults.removeObject(forKey: Self.settingsKey)
+        legacyDefaults.removeObject(forKey: Self.simulatorAPIKeyKey)
     }
 
     public func load() -> ModelSettings {

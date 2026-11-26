@@ -19,8 +19,13 @@ device. The tool set grows over time.
 - The agent asks before it creates or changes a file (setting, on by default).
 - Web search, web fetch and JavaScript (read-only workspace access) on the device.
 - Conversations: list, new, delete, persisted on the device. Messages sent while the agent works steer it. Stop and retry.
+- A keyboard assistant, a Siri replacement in any app: speak a request in the stupid agent keyboard and a fast, cheap
+  model adds reminders and events, sets alarms and timers, answers questions or types text into the field.
 
 ## Next
+
+- Keyboard assistant: more tools (complete reminders, contacts, web search), a typed request, and streaming
+  transcription to a server for languages Apple's recognizer handles poorly.
 
 - More tools, each running in the app sandbox:
   - calendar, reminders and contacts with permission

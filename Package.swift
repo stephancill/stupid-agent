@@ -10,6 +10,8 @@ let package = Package(
     products: [
         // A stupid-app project contains exactly one library product representing the application.
         .library(name: "StupidAgent", targets: ["StupidAgent"]),
+        // The keyboard extension (`extensions:` in stupid-app.yml).
+        .library(name: "StupidAgentKeyboard", targets: ["StupidAgentKeyboard"]),
     ],
     dependencies: [
         .package(url: "https://github.com/stephancill/stupid-chatkit", from: "0.5.0"),
@@ -23,6 +25,11 @@ let package = Package(
             .product(name: "PiTools", package: "swift-pi"),
             // iOS-only: the kit is UIKit, and `swift test` builds the package on macOS for the core tests.
             .product(name: "StupidChatKit", package: "stupid-chatkit", condition: .when(platforms: [.iOS])),
+        ]),
+        // The keyboard assistant: voice in, a fast model with device tools, the reply in the keyboard.
+        .target(name: "StupidAgentKeyboard", dependencies: [
+            "StupidAgentCore",
+            .product(name: "PiAI", package: "swift-pi"),
         ]),
         // Settings, storage and the agent session, without UI.
         .target(name: "StupidAgentCore", dependencies: [

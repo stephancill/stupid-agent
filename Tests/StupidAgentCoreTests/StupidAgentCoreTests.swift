@@ -371,3 +371,135 @@ private func makeDatabase(in directory: URL) throws -> URL {
         #expect(workspace.root.path.isEmpty == false)
     }
 }
+
+@Suite struct KeyboardAssistantTests {
+    var calendar: Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "Africa/Johannesburg")!
+        return calendar
+    }
+
+    @Test func readsTheModelsDates() throws {
+        let morning = try #require(LocalTime.parse("2026-11-27T06:30", calendar: calendar))
+        #expect(morning.hasTime)
+        #expect(LocalTime.format(morning.date, calendar: calendar) == "2026-11-27T06:30")
+        #expect(LocalTime.parse("2026-11-27T06:30:00", calendar: calendar)?.date == morning.date)
+        #expect(LocalTime.parse("2026-11-27 06:30", calendar: calendar)?.date == morning.date)
+        // An explicit zone wins over the calendar's.
+        #expect(LocalTime.parse("2026-11-27T04:30Z", calendar: calendar)?.date == morning.date)
+        let day = try #require(LocalTime.parse("2026-11-27", calendar: calendar))
+        #expect(!day.hasTime)
+        #expect(LocalTime.format(day.date, hasTime: false, calendar: calendar) == "2026-11-27")
+        #expect(LocalTime.parse("tomorrow", calendar: calendar) == nil)
+        #expect(LocalTime.parse("2026-02-30", calendar: calendar) == nil)
+    }
+
+    @Test func spellsOutTheComingWeek() throws {
+        let now = try #require(LocalTime.parse("2026-11-26T14:05", calendar: calendar)).date
+        let prompt = KeyboardAssistant.systemPrompt(now: now, calendar: calendar)
+        #expect(prompt.contains("Now is Thursday 2026-11-26T14:05."))
+        #expect(prompt.contains("Friday 2026-11-27, Saturday 2026-11-28"))
+        #expect(prompt.contains("Thursday 2026-12-03."))
+    }
+
+    @Test func includesTheFieldOnlyWhenItHasText() {
+        #expect(KeyboardAssistant.userMessage(request: "reply yes", fieldText: "  \n") == "reply yes")
+        #expect(KeyboardAssistant.userMessage(request: "reply yes", fieldText: "Coming?") == "reply yes\n\n<field>\nComing?\n</field>")
+    }
+
+    @Test func picksAFastModelForTheKeyboard() {
+        var settings = ModelSettings(preset: .openRouter, modelId: "anthropic/claude-opus")
+        #expect(settings.resolvedAssistantModelId == KeyboardAssistant.defaultOpenRouterModel)
+        settings.assistantModelId = " openai/gpt-6-luna "
+        #expect(settings.assistantModel.id == "openai/gpt-6-luna")
+        #expect(!settings.assistantModel.reasoning)
+        #expect(ModelSettings(preset: .ollama, modelId: "llama").resolvedAssistantModelId == "llama")
+        #expect(ModelSettings(preset: .custom, modelId: "m").requestHeaders == nil)
+    }
+
+    @Test func runsToolsAndReturnsTheReply() async throws {
+        let actions = RecordingActions()
+        let now = try #require(LocalTime.parse("2026-11-26T14:05", calendar: calendar)).date
+        let reply = try await KeyboardAssistant.run(
+            request: "remind me to call mom tomorrow at 6 and reply on my way",
+            fieldText: "Where are you?",
+            model: ModelSettings(preset: .custom, baseURL: "https://example.test/v1", modelId: "m").assistantModel,
+            options: StreamOptions(),
+            actions: actions,
+            now: now,
+            calendar: calendar,
+            streamFunction: assistantStream()
+        )
+        #expect(reply == "Reminder set and reply typed.")
+        let calls = await actions.calls
+        #expect(calls.contains("reminder Call mom 2026-11-27T18:00"))
+        #expect(calls.contains("insert On my way"))
+    }
+
+    @Test func reportsBadArgumentsToTheModel() async throws {
+        let tools = KeyboardAssistant.tools(actions: RecordingActions(), calendar: calendar)
+        let alarm = try #require(tools.first { $0.name == "set_alarm" })
+        await #expect(throws: AssistantError.self) {
+            _ = try await alarm.execute("1", ["time": "at six"], { _ in })
+        }
+        await #expect(throws: AssistantError.self) {
+            _ = try await alarm.execute("1", ["time": "2020-01-01T06:00"], { _ in })
+        }
+    }
+
+    @Test func movesSettingsIntoTheSharedStore() throws {
+        let legacy = try #require(UserDefaults(suiteName: "legacy-\(UUID().uuidString)"))
+        let shared = try #require(UserDefaults(suiteName: "shared-\(UUID().uuidString)"))
+        let service = "test-\(UUID().uuidString)"
+        try SettingsStore(defaults: legacy, keychain: Keychain(service: service)).save(ModelSettings(preset: .groq, modelId: "llama"))
+        let store = SettingsStore(defaults: shared, keychain: Keychain(service: service, accessGroup: "group.test"))
+        try store.migrate(from: legacy, legacyKeychain: Keychain(service: service))
+        #expect(store.load().modelId == "llama")
+        #expect(legacy.data(forKey: "modelSettings") == nil)
+        // Settings already in the shared store are kept.
+        try SettingsStore(defaults: legacy, keychain: Keychain(service: service)).save(ModelSettings(preset: .groq, modelId: "other"))
+        try store.migrate(from: legacy, legacyKeychain: Keychain(service: service))
+        #expect(store.load().modelId == "llama")
+    }
+}
+
+private actor RecordingActions: AssistantActions {
+    private(set) var calls: [String] = []
+
+    private func record(_ call: String) -> String {
+        calls.append(call)
+        return "Done."
+    }
+
+    func createReminder(title: String, due: LocalTime?, notes: String?) async throws -> String {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "Africa/Johannesburg")!
+        return record("reminder \(title) \(due.map { LocalTime.format($0.date, hasTime: $0.hasTime, calendar: calendar) } ?? "-")")
+    }
+    func listReminders() async throws -> String { record("list reminders") }
+    func createEvent(title: String, start: LocalTime, end: LocalTime?, location: String?, notes: String?) async throws -> String { record("event \(title)") }
+    func listEvents(from start: Date, to end: Date) async throws -> String { record("list events") }
+    func setAlarm(at date: Date, label: String?) async throws -> String { record("alarm") }
+    func setTimer(seconds: Int, label: String?) async throws -> String { record("timer \(seconds)") }
+    func listAlarms() async throws -> String { record("list alarms") }
+    func cancelAlarm(id: String) async throws -> String { record("cancel \(id)") }
+    func insertText(_ text: String) async throws -> String { record("insert \(text)") }
+}
+
+/// A model that adds a reminder and types a reply in one turn, then answers.
+private func assistantStream() -> StreamFunction {
+    let calls = Counter()
+    return { model, _, _ in
+        let stream = AssistantMessageEventStream()
+        let message = await calls.next() == 0
+            ? AssistantMessage(content: [
+                .toolCall(ToolCall(id: "r1", name: "create_reminder", arguments: ["title": "Call mom", "due": "2026-11-27T18:00"])),
+                .toolCall(ToolCall(id: "t1", name: "insert_text", arguments: ["text": "On my way"])),
+            ], api: model.api, provider: model.provider, model: model.id, stopReason: .toolUse)
+            : AssistantMessage(content: [.text(TextContent(text: " Reminder set and reply typed.\n"))], api: model.api, provider: model.provider, model: model.id, stopReason: .stop)
+        stream.push(.start(partial: AssistantMessage(api: model.api, provider: model.provider, model: model.id, stopReason: .pending)))
+        stream.push(.done(reason: message.stopReason, message: message))
+        stream.end()
+        return stream
+    }
+}

@@ -154,8 +154,7 @@ public final class AgentSession {
 
     /// OpenRouter shows the app's name for requests that say where they come from.
     private static func headers(for settings: ModelSettings) -> [String: String]? {
-        guard settings.preset == .openRouter else { return nil }
-        return ["HTTP-Referer": "https://stupidtech.net", "X-Title": "stupid agent"]
+        settings.requestHeaders
     }
 
     /// Applies changed settings to later requests.

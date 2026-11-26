@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDisplayName</key>
+	<string>stupid agent</string>
+	<key>CFBundleIdentifier</key>
+	<string>net.stupidtech.StupidAgent.keyboard</string>
+	<key>CFBundleShortVersionString</key>
+	<string>1.0.0</string>
+	<key>CFBundleVersion</key>
+	<string>1</string>
+	<key>MinimumOSVersion</key>
+	<string>18.0</string>
+	<key>NSAlarmKitUsageDescription</key>
+	<string>The stupid agent keyboard sets alarms and timers you ask for.</string>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>The stupid agent keyboard adds events you ask for and reads your schedule when you ask about it.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>The stupid agent keyboard listens when you tap Ask.</string>
+	<key>NSRemindersFullAccessUsageDescription</key>
+	<string>The stupid agent keyboard adds reminders you ask for and reads them when you ask about them.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>The stupid agent keyboard turns what you say into text for the assistant.</string>
+	<key>NSExtension</key>
+	<dict>
+		<key>NSExtensionAttributes</key>
+		<dict>
+			<key>IsASCIICapable</key>
+			<false/>
+			<key>PrefersRightToLeft</key>
+			<false/>
+			<key>PrimaryLanguage</key>
+			<string>mul</string>
+			<key>RequestsOpenAccess</key>
+			<true/>
+		</dict>
+		<key>NSExtensionPointIdentifier</key>
+		<string>com.apple.keyboard-service</string>
+		<key>NSExtensionPrincipalClass</key>
+		<string>KeyboardViewController</string>
+	</dict>
+</dict>
+</plist>
