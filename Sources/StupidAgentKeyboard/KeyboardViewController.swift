@@ -51,8 +51,10 @@ final class KeyboardViewController: UIInputViewController {
         capture.onReady = { [weak self] in self?.render() }
         capture.onAudio = { [weak self] data, rms in self?.append(data, rms: rms) }
         capture.onEnded = { [weak self] reason in self?.captureEnded(reason) }
-        capture.attach(to: view)
+        // The simulator test path needs no microphone, and WebKit in a keyboard is unreliable on some simulators.
+        if Self.simulatorTestRequest == nil { capture.attach(to: view) }
         showIdle()
+        render()
     }
 
     override func viewWillDisappear(_ animated: Bool) {
@@ -76,6 +78,11 @@ final class KeyboardViewController: UIInputViewController {
     }
 
     private func startListening() {
+        if let request = Self.simulatorTestRequest {
+            transcript = request
+            phase = .transcribing
+            return submitTranscript()
+        }
         guard hasFullAccess else {
             return showMessage("Turn on Allow Full Access", detail: "Settings → General → Keyboard → Keyboards → stupid agent.")
         }
@@ -337,7 +344,7 @@ final class KeyboardViewController: UIInputViewController {
         switch phase {
         case .idle:
             askButton.alpha = 1
-            configuration.title = capture.isReady ? "Ask" : "Loading…"
+            configuration.title = capture.isReady || Self.simulatorTestRequest != nil ? "Ask" : "Loading…"
             configuration.image = UIImage(systemName: "mic.fill")
             configuration.baseBackgroundColor = .systemBlue
         case .listening:
@@ -351,7 +358,17 @@ final class KeyboardViewController: UIInputViewController {
             configuration.baseBackgroundColor = .systemGray
         }
         askButton.configuration = configuration
-        askButton.isEnabled = capture.isReady || phase != .idle
+        askButton.isEnabled = capture.isReady || phase != .idle || Self.simulatorTestRequest != nil
+    }
+
+    /// Simulator builds only: a request stored under `keyboardTestRequest` in the App Group's defaults is sent by Ask
+    /// in place of speech, so everything after the microphone can be tested where there is none.
+    private static var simulatorTestRequest: String? {
+        #if targetEnvironment(simulator)
+        UserDefaults(suiteName: appGroupIdentifier)?.string(forKey: "keyboardTestRequest")
+        #else
+        nil
+        #endif
     }
 
     private func showIdle() {

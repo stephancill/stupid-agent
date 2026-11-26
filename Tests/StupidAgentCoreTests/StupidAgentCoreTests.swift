@@ -410,11 +410,19 @@ private func makeDatabase(in directory: URL) throws -> URL {
     @Test func picksAFastModelForTheKeyboard() {
         var settings = ModelSettings(preset: .openRouter, modelId: "anthropic/claude-opus")
         #expect(settings.resolvedAssistantModelId == KeyboardAssistant.defaultOpenRouterModel)
-        settings.assistantModelId = " openai/gpt-6-luna "
-        #expect(settings.assistantModel.id == "openai/gpt-6-luna")
-        #expect(!settings.assistantModel.reasoning)
+        settings.assistantModelId = " deepseek/deepseek-v4.1-flash "
+        #expect(settings.assistantModel.id == "deepseek/deepseek-v4.1-flash")
+        // Marked as reasoning so swift pi asks OpenRouter for no reasoning; elsewhere nothing is sent.
+        #expect(settings.assistantModel.reasoning)
+        #expect(!ModelSettings(preset: .groq, modelId: "llama").assistantModel.reasoning)
         #expect(ModelSettings(preset: .ollama, modelId: "llama").resolvedAssistantModelId == "llama")
         #expect(ModelSettings(preset: .custom, modelId: "m").requestHeaders == nil)
+    }
+
+    @Test func asksOpenRouterForNoReasoning() {
+        let model = ModelSettings(preset: .openRouter, modelId: "x").assistantModel
+        let context = TranscriptContext(normalizing: Context(systemPrompt: "s", messages: [.user(UserMessage(text: "hi"))]))
+        #expect(OpenAICompletions.requestBody(model: model, context: context, options: StreamOptions())["reasoning"] == ["effort": "none"])
     }
 
     @Test func runsToolsAndReturnsTheReply() async throws {

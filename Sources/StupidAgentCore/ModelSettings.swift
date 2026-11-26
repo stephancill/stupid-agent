@@ -173,9 +173,11 @@ public struct ModelSettings: Codable, Hashable, Sendable {
         return modelId.trimmingCharacters(in: .whitespaces)
     }
 
-    /// The keyboard assistant's model: the same server, without thinking or images.
+    /// The keyboard assistant's model: the same server, without thinking or images. On OpenRouter it is marked as
+    /// reasoning so swift pi sends `reasoning: {effort: "none"}`; unmarked, nothing is sent and models that reason by
+    /// default do (GPT-6 Luna took 2.8 s a request instead of 1.2 s).
     public var assistantModel: Model {
-        Model(id: resolvedAssistantModelId, provider: preset.providerId, baseURL: baseURL.trimmingCharacters(in: .whitespaces), reasoning: false, input: [.text])
+        Model(id: resolvedAssistantModelId, provider: preset.providerId, baseURL: baseURL.trimmingCharacters(in: .whitespaces), reasoning: preset == .openRouter, input: [.text])
     }
 
     /// Headers every request to the server carries.

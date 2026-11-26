@@ -78,7 +78,7 @@ public struct AssistantError: Error, LocalizedError, Sendable {
 /// A voice request run against a fast model from the keyboard: the prompt, the tools and a single run.
 public enum KeyboardAssistant {
     /// The model the keyboard uses on OpenRouter unless Settings name another: fast, cheap and reliable with tools.
-    public static let defaultOpenRouterModel = "deepseek/deepseek-v4.1-flash"
+    public static let defaultOpenRouterModel = "openai/gpt-6-luna"
 
     public static func systemPrompt(now: Date = Date(), calendar: Calendar = .current) -> String {
         let weekday = DateFormatter()
