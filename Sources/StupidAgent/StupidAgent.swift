@@ -28,7 +28,10 @@ final class AppModel {
     /// The background index of other apps' containers, and the access object the agent sessions read.
     let containerIndex = ContainerIndex()
     private var containers: SandboxContainers { containerIndex.access }
-    private let settingsStore = SettingsStore()
+    /// Shared with the keyboard through the App Group.
+    private let settingsStore: SettingsStore
+    /// Why settings saved by an earlier version couldn't move to the shared store, shown in Settings.
+    private(set) var settingsStorageError: String?
     /// Open sessions, so a running conversation keeps going while the user looks elsewhere.
     private var sessions: [UUID: AgentSession] = [:]
 
@@ -36,6 +39,16 @@ final class AppModel {
         let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
         workspace = Workspace(root: documents)
         store = ConversationStore.appDefault()
+        do {
+            settingsStore = try SettingsStore.shared()
+        } catch {
+            fatalError(error.localizedDescription)
+        }
+        do {
+            try settingsStore.migrate()
+        } catch {
+            settingsStorageError = "Couldn't move saved settings to the keyboard's shared storage: \(error.localizedDescription)"
+        }
         settings = settingsStore.load()
         apiKey = settingsStore.apiKey()
         conversations = store.list()

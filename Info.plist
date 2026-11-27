@@ -21,6 +21,16 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<key>NSAlarmKitUsageDescription</key>
+	<string>The stupid agent keyboard sets alarms and timers you ask for.</string>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>The stupid agent keyboard adds events you ask for and reads your schedule when you ask about it.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>The stupid agent keyboard listens when you tap Ask.</string>
+	<key>NSRemindersFullAccessUsageDescription</key>
+	<string>The stupid agent keyboard adds reminders you ask for and reads them when you ask about them.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>The stupid agent keyboard turns what you say into text for the assistant.</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Connect to a model running on a computer on your network, such as Ollama or LM Studio.</string>
 	<key>UIApplicationSceneManifest</key>

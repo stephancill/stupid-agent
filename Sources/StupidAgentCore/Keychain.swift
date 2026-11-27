@@ -4,9 +4,12 @@ import Security
 /// Generic passwords in the Keychain, available after first unlock and kept on this device.
 public struct Keychain: Sendable {
     public let service: String
+    /// A Keychain access group shared with other targets, such as an App Group; nil is the app's own.
+    public let accessGroup: String?
 
-    public init(service: String) {
+    public init(service: String, accessGroup: String? = nil) {
         self.service = service
+        self.accessGroup = accessGroup
     }
 
     public struct Failure: Error, LocalizedError {
@@ -15,7 +18,9 @@ public struct Keychain: Sendable {
     }
 
     private func query(account: String) -> [String: Any] {
-        [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service, kSecAttrAccount as String: account]
+        var query: [String: Any] = [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service, kSecAttrAccount as String: account]
+        if let accessGroup { query[kSecAttrAccessGroup as String] = accessGroup }
+        return query
     }
 
     public func read(account: String) -> String? {
@@ -38,6 +43,21 @@ public struct Keychain: Sendable {
             guard added == errSecSuccess else { throw Failure(status: added) }
         } else if status != errSecSuccess {
             throw Failure(status: status)
+        }
+    }
+
+    /// Deletes the account's items in every access group except `keeping`, such as copies left in the app's own group.
+    public func delete(account: String, exceptGroup keeping: String) throws {
+        var search: [String: Any] = [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service, kSecAttrAccount as String: account]
+        search[kSecReturnAttributes as String] = true
+        search[kSecMatchLimit as String] = kSecMatchLimitAll
+        var result: AnyObject?
+        let status = SecItemCopyMatching(search as CFDictionary, &result)
+        guard status != errSecItemNotFound else { return }
+        guard status == errSecSuccess else { throw Failure(status: status) }
+        let groups = ((result as? [[String: Any]]) ?? []).compactMap { $0[kSecAttrAccessGroup as String] as? String }
+        for group in Set(groups) where group != keeping {
+            try Keychain(service: service, accessGroup: group).delete(account: account)
         }
     }
 

@@ -21,17 +21,24 @@ Sources/
     AgentChatView.swift   # Chat screen: stupid chatkit's chat, Stop, the file-change alert
     AgentChatAdapter.swift # ChatAdapter: session entries → chat kit messages, sends through the session
     SettingsView.swift    # Bring-your-own-model settings
+    KeyboardSetupView.swift # Keyboard assistant permissions and setup steps
     SandboxBridge.swift   # Sandbox extensions for other apps' containers (worse_query technique)
     SandboxContainers.swift # Container discovery and grants, as AppContainerAccess; background inode-scan index
     ContainerIndex.swift  # @Observable over the background index, for the Settings progress UI
+  StupidAgentKeyboard/    # Keyboard extension (iOS only): the voice assistant
+    KeyboardViewController.swift # Listen, auto-stop on silence, run the assistant, show the reply
+    WebAudioCapture.swift # Microphone through a hidden WKWebView (from ios-keyboard-dictation)
+    DeviceActions.swift   # AssistantActions with EventKit, AlarmKit and the text proxy
   StupidAgentCore/        # No UI; tested with `swift test` on macOS
-    ModelSettings.swift   # Provider presets, ModelSettings, SettingsStore, model listing
+    ModelSettings.swift   # Provider presets, ModelSettings, SettingsStore (shared with the keyboard), model listing
+    KeyboardAssistant.swift # The keyboard assistant's prompt, tools and run; LocalTime
     Keychain.swift
     ConversationStore.swift
     ChatEntries.swift     # Transcript → chat entries (user, agent response with thinking and tools, notices)
     AppContainers.swift   # AppContainer, AppContainerAccess, container paths and tools
     SQLiteTool.swift      # Read-only SQLite query tool
     AgentSession.swift    # One conversation: the swift pi Agent, file-change approvals, saving
+    TitleGenerator.swift  # Short conversation titles from the first message
 Tests/StupidAgentCoreTests/
 ```
 

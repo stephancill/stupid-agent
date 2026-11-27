@@ -102,9 +102,20 @@ struct SettingsView: View {
                     Text("The agent can search the web, read pages and run JavaScript. Searches go to the provider chosen here; neither needs an API key.")
                 }
 
-                if let saveError {
+                Section {
+                    TextField("Keyboard Model", text: $settings.assistantModelId, prompt: Text(assistantModelPlaceholder))
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                    NavigationLink("Set Up Keyboard") { KeyboardSetupView() }
+                } header: {
+                    Text("Keyboard")
+                } footer: {
+                    Text("Ask for reminders, events, alarms, timers and writing from the stupid agent keyboard in any app. It uses this server and key with a fast model; leave the model empty for \(assistantModelPlaceholder).")
+                }
+
+                if let error = saveError ?? model.settingsStorageError {
                     Section {
-                        Text(saveError).foregroundStyle(.red)
+                        Text(error).foregroundStyle(.red)
                     }
                 }
             }
@@ -172,6 +183,14 @@ struct SettingsView: View {
         } footer: {
             Text("The agent finds other apps by scanning once in the background; this can take a few minutes the first time. Later launches are instant and pick up newly installed apps automatically.")
         }
+    }
+
+    /// The model the keyboard uses when its field is empty.
+    private var assistantModelPlaceholder: String {
+        var defaults = settings
+        defaults.assistantModelId = ""
+        let id = defaults.resolvedAssistantModelId
+        return id.isEmpty ? "the chat model" : id
     }
 
     /// A picked provider brings its base URL; loading saved settings doesn't go through here.

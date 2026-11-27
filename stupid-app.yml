@@ -9,3 +9,11 @@ capabilities:
   - entitlementKey: com.apple.security.application-groups
     type: APP_GROUPS
 iconPath: Resources/AppIcon.png
+extensions:
+  - product: StupidAgentKeyboard
+    bundleID: net.stupidtech.StupidAgent.keyboard
+    infoPath: KeyboardInfo.plist
+    entitlementsPath: Keyboard.entitlements
+    capabilities:
+      - entitlementKey: com.apple.security.application-groups
+        type: APP_GROUPS
